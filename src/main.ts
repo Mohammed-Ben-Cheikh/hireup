@@ -7,13 +7,16 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('HireUp API')
-    .setDescription('The HireUp API description')
+    .setDescription('The HireUp API')
     .setVersion('1.0')
-    .addTag('users')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, documentFactory);
 
-  await app.listen(process.env.PORT ?? 3001);
+  await app.listen(process.env.PORT ?? 3001, () => {
+    console.log(
+      `\nthe server is running on http://localhost:${process.env.PORT ?? 3001}`,
+    );
+  });
 }
 bootstrap();
