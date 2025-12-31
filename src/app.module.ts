@@ -7,6 +7,8 @@ import { InterviewsModule } from './interviews/interviews.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import { CandidatesModule } from './candidates/candidates.module';
 import { RolesModule } from './roles/roles.module';
+import { FormsModule } from './forms/forms.module';
+import { MinioModule } from './minio/minio.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { RolesModule } from './roles/roles.module';
     OrganizationsModule,
     CandidatesModule,
     RolesModule,
+    FormsModule,
+    MinioModule,
   ],
 })
 export class AppModule {}
