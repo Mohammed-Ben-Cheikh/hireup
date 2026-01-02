@@ -1,33 +1,61 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
+import * as bcrypt from 'bcrypt';
+
+import { User, UserRole } from './user.entity';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: Repository<User>) {}
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(
+    @InjectRepository(User) private readonly usersRepo: Repository<User>,
+  ) {}
+
+  async findByEmail(email: string): Promise<User | null> {
+    return this.usersRepo.findOne({ where: { email } });
   }
 
-  findAll() {
-    return `This action returns all users`;
+  async findById(id: string): Promise<User | null> {
+    return this.usersRepo.findOne({ where: { id } });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async create(data: {
+    email: string;
+    passwordHash: string;
+    role?: UserRole;
+    orgId?: string | null;
+  }): Promise<User> {
+    const user = this.usersRepo.create({
+      email: data.email,
+      passwordHash: data.passwordHash,
+      role: data.role ?? UserRole.RH,
+      orgId: data.orgId ?? null,
+    });
+    return this.usersRepo.save(user);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async createWithPassword(data: {
+    email: string;
+    password: string;
+    role?: UserRole;
+    orgId?: string | null;
+  }): Promise<User> {
+    const existing = await this.findByEmail(data.email);
+    if (existing) {
+      throw new ConflictException('Email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    return this.create({
+      email: data.email,
+      passwordHash,
+      role: data.role,
+      orgId: data.orgId ?? null,
+    });
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
-  }
-
-  findByEmail(email: string) {
-    return this.userRepository.findOne({ where: { email } });
+  async assignOrg(userId: string, orgId: string): Promise<User | null> {
+    await this.usersRepo.update(userId, { orgId });
+    return this.findById(userId);
   }
 }

@@ -1,34 +1,69 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { CandidatesService } from './candidates.service';
-import { CreateCandidateDto } from './dto/create-candidate.dto';
-import { UpdateCandidateDto } from './dto/update-candidate.dto';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { UserRole } from '../users/user.entity';
+import { CandidatesService } from './candidates.service';
+import { UpdateCandidateStatusDto } from './dto/update-candidate-status.dto';
+
+@ApiTags('candidates')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('candidates')
 export class CandidatesController {
   constructor(private readonly candidatesService: CandidatesService) {}
 
-  @Post()
-  create(@Body() createCandidateDto: CreateCandidateDto) {
-    return this.candidatesService.create(createCandidateDto);
+  @Patch(':id/status')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN_RH, UserRole.RH, UserRole.MANAGER)
+  @ApiOkResponse({
+    schema: {
+      example: {
+        id: 'uuid',
+        status: 'PRESELECTIONNE',
+      },
+    },
+  })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() payload: UpdateCandidateStatusDto,
+    @Req() req: { user: { orgId: string | null; userId: string } },
+  ) {
+    if (!req.user.orgId) {
+      throw new BadRequestException('Organization is required');
+    }
+
+    return this.candidatesService.updateStatus(
+      req.user.orgId,
+      id,
+      payload.status,
+      req.user.userId,
+    );
   }
 
-  @Get()
-  findAll() {
-    return this.candidatesService.findAll();
-  }
+  @Get(':id/history')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN_RH, UserRole.RH, UserRole.MANAGER)
+  @ApiOkResponse({ schema: { example: [] } })
+  history(
+    @Param('id') id: string,
+    @Req() req: { user: { orgId: string | null } },
+  ) {
+    if (!req.user.orgId) {
+      throw new BadRequestException('Organization is required');
+    }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.candidatesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCandidateDto: UpdateCandidateDto) {
-    return this.candidatesService.update(+id, updateCandidateDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.candidatesService.remove(+id);
+    return this.candidatesService.getHistory(req.user.orgId, id);
   }
 }

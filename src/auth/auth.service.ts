@@ -1,51 +1,78 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { User } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
-import { Repository } from 'typeorm';
-import { LoginAuthDto } from './dto/login-auth.dto';
-import { RegisterAuthDto } from './dto/register-auth.dto';
+
+import { UsersService } from '../users/users.service';
+import { User } from '../users/user.entity';
+import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
+
+export interface AuthTokenResponse {
+  access_token: string;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    orgId: string | null;
+  };
+}
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
     private readonly jwtService: JwtService,
   ) {}
-  async register(registerAuthDto: RegisterAuthDto): Promise<{ token: string }> {
-    const hashedPassword = await bcrypt.hash(registerAuthDto.password, 10);
 
-    const user = this.userRepository.create({
-      ...registerAuthDto,
-      password: hashedPassword,
-    });
-
-    await this.userRepository.save(user);
-
-    return {
-      token: this.jwtService.sign({ sub: user.id }),
-    };
-  }
-
-  async login(loginAuthDto: LoginAuthDto): Promise<{ access_token: string }> {
-    const user = await this.usersService.findByEmail(loginAuthDto.email);
-
-    if (user?.password !== loginAuthDto.password) {
-      throw new UnauthorizedException();
+  async register(payload: RegisterDto): Promise<AuthTokenResponse> {
+    const existing = await this.usersService.findByEmail(payload.email);
+    if (existing) {
+      throw new ConflictException('Email already exists');
     }
 
-    const payload = {
+    const passwordHash = await bcrypt.hash(payload.password, 10);
+    const user = await this.usersService.create({
+      email: payload.email,
+      passwordHash,
+      role: payload.role,
+      orgId: payload.orgId ?? null,
+    });
+
+    return this.issueToken(user);
+  }
+
+  async login(payload: LoginDto): Promise<AuthTokenResponse> {
+    const user = await this.usersService.findByEmail(payload.email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      payload.password,
+      user.passwordHash,
+    );
+    if (!passwordMatches) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return this.issueToken(user);
+  }
+
+  private issueToken(user: User): AuthTokenResponse {
+    const access_token = this.jwtService.sign({
       sub: user.id,
-      username: user.username,
-      roules: user.roles,
-    };
+      role: user.role,
+      orgId: user.orgId,
+    });
 
     return {
-      access_token: await this.jwtService.signAsync(payload),
+      access_token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        orgId: user.orgId,
+      },
     };
   }
 }

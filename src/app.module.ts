@@ -1,36 +1,60 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import * as Joi from 'joi';
+
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { UsersModule } from './users/users.module';
-import { InterviewsModule } from './interviews/interviews.module';
-import { OrganizationsModule } from './organizations/organizations.module';
+import { HealthController } from './health/health.controller';
 import { CandidatesModule } from './candidates/candidates.module';
-import { RolesModule } from './roles/roles.module';
+import { DocumentsModule } from './documents/documents.module';
 import { FormsModule } from './forms/forms.module';
-import { MinioModule } from './minio/minio.module';
+import { InterviewsModule } from './interviews/interviews.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      username: 'postgres',
-      password: 'StrongPassword123!',
-      database: 'hireup',
-      entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: true,
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema: Joi.object({
+        PORT: Joi.number().default(3000),
+        NODE_ENV: Joi.string()
+          .valid('development', 'test', 'production')
+          .default('development'),
+        JWT_SECRET: Joi.string().required(),
+        JWT_EXPIRES_IN: Joi.string().default('1d'),
+        DATABASE_URL: Joi.string().required(),
+        MINIO_ENDPOINT: Joi.string().required(),
+        MINIO_PORT: Joi.number().required(),
+        MINIO_ACCESS_KEY: Joi.string().required(),
+        MINIO_SECRET_KEY: Joi.string().required(),
+        MINIO_BUCKET: Joi.string().default('gedpro'),
+      }),
     }),
-    MongooseModule.forRoot('mongodb://localhost:27017/hireup'),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        url: configService.get<string>('DATABASE_URL'),
+        autoLoadEntities: true,
+        synchronize: true,
+        logging: configService.get<string>('NODE_ENV') !== 'production',
+      }),
+    }),
     UsersModule,
     AuthModule,
-    InterviewsModule,
     OrganizationsModule,
-    CandidatesModule,
-    RolesModule,
     FormsModule,
-    MinioModule,
+    CandidatesModule,
+    DocumentsModule,
+    InterviewsModule,
+    NotificationsModule,
   ],
+  controllers: [AppController, HealthController],
+  providers: [AppService],
 })
 export class AppModule {}
