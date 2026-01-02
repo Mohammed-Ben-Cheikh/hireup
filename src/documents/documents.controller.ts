@@ -11,14 +11,14 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiConsumes,
   ApiOkResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { Response } from 'express';
+import type { Response } from 'express';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -61,7 +61,11 @@ export class DocumentsController {
       throw new BadRequestException('Organization is required');
     }
 
-    return this.documentsService.upload(req.user.orgId, payload.candidateId, file);
+    return this.documentsService.upload(
+      req.user.orgId,
+      payload.candidateId,
+      file,
+    );
   }
 
   @Get(':id/download')

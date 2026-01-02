@@ -23,8 +23,8 @@ export class NotificationsController {
   @Get()
   @ApiOkResponse({ schema: { example: [] } })
   list(
-    @Query('unread') unread?: string,
     @Req() req: { user: { orgId: string | null; role: string } },
+    @Query('unread') unread?: string,
   ) {
     if (!req.user.orgId) {
       throw new BadRequestException('Organization is required');

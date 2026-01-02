@@ -8,9 +8,9 @@ export class MinioService implements OnModuleInit {
   private readonly bucket: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET');
+    this.bucket = this.configService.get<string>('MINIO_BUCKET')!;
     this.client = new Minio.Client({
-      endPoint: this.configService.get<string>('MINIO_ENDPOINT'),
+      endPoint: this.configService.get<string>('MINIO_ENDPOINT')!,
       port: this.configService.get<number>('MINIO_PORT'),
       useSSL: false,
       accessKey: this.configService.get<string>('MINIO_ACCESS_KEY'),
@@ -26,7 +26,7 @@ export class MinioService implements OnModuleInit {
   }
 
   async upload(objectKey: string, buffer: Buffer, mimeType: string) {
-    await this.client.putObject(this.bucket, objectKey, buffer, {
+    await this.client.putObject(this.bucket, objectKey, buffer, undefined, {
       'Content-Type': mimeType,
     });
   }

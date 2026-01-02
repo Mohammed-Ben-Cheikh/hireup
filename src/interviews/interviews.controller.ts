@@ -83,9 +83,9 @@ export class InterviewsController {
   @Get()
   @ApiOkResponse({ schema: { example: [] } })
   list(
+    @Req() req: { user: { orgId: string | null } },
     @Query('date_from') dateFrom?: string,
     @Query('date_to') dateTo?: string,
-    @Req() req: { user: { orgId: string | null } },
   ) {
     if (!req.user.orgId) {
       return [];

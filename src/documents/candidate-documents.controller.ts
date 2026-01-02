@@ -23,12 +23,12 @@ export class CandidateDocumentsController {
     },
   })
   list(
+    @Req() req: { user: { orgId: string | null } },
     @Param('id') candidateId: string,
     @Query('type') type?: string,
     @Query('order') order?: 'asc' | 'desc',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
-    @Req() req: { user: { orgId: string | null } },
   ) {
     if (!req.user.orgId) {
       return { items: [], page: 1, limit: 20, total: 0 };
